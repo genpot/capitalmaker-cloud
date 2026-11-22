@@ -1,0 +1,41 @@
+name: CapitalMaker Hands-Free X & Bluesky Traffic Bot
+
+on:
+  schedule:
+    # Runs every 2 hours (12 posts/day = ~360/mo, safely inside X's 500/mo free tier!)
+    - cron: '15 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-post-social:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore 4h Social Cooldown Cache
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: social-cooldowns-${{ github.run_id }}
+          restore-keys: |
+            social-cooldowns-
+
+      - name: Auto-Tweet Live Solana Breakout to X & Bluesky
+        env:
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: python CapitalMakerCloud/scripts/social_autoposter.py
