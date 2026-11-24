@@ -1,12 +1,12 @@
-name: Render 3 Fluid Live-Action Commercial Ads (Apple iOS & Android)
+name: Render 3 Real Live-Action Commercial Ads (Apple iOS & Android)
 
 on:
   workflow_dispatch:
     inputs:
       hub_url:
-        description: "Your Netlify Hub URL (optional)"
+        description: "Your Netlify Hub URL"
         required: false
-        default: "https://t.me/MysolAlpha99"
+        default: "https://iridescent-baklava-d93abb.netlify.app"
       which_ad:
         description: "Which video to render (all, ad1_glamorous_woman, ad2_busy_worker, ad3_young_couple)"
         required: false
@@ -32,10 +32,12 @@ jobs:
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           pip install -q -r CapitalMakerCloud/requirements.txt
 
-      - name: Render 3 Fluid 30fps Live-Action Commercials
+      - name: Render 3 Real Moving Live-Action Commercials
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           HUB_URL: ${{ github.event.inputs.hub_url }}
         run: python CapitalMakerCloud/scripts/cinematic_ads_pack.py --only "${{ github.event.inputs.which_ad || 'all' }}"
 
