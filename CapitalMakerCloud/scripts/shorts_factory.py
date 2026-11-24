@@ -520,7 +520,7 @@ def render_storytelling_mp4(
                 d = ImageDraw.Draw(canvas)
                 d.text((64, 205), "NEVER MISS THE NEXT", fill=white, font=load_font(44, bold=True))
                 d.text((64, 260), "SOLANA STORY.", fill=mint, font=load_font(48, bold=True))
-                d.text((64, 332), "24/7 Live Alerts • Free Trading Apps • Zero VIP Fees", fill=muted, font=load_font(22, bold=True))
+                d.text((64, 332), "24/7 Live Alerts • Free iPhone & Android Apps", fill=muted, font=load_font(22, bold=True))
 
                 d.rounded_rectangle([(64 - grow, 385 - grow // 2), (RW - 64 + grow, 482 + grow // 2)], radius=20, fill=mint)
                 d.text((92, 400), "JOIN FREE TELEGRAM RADAR", fill=(6, 14, 24), font=load_font(24, bold=True))
@@ -652,7 +652,7 @@ def main() -> int:
     caption = (
         f"{'🚀' if bullish else '📉'} ${top.symbol} — {direction_tag} ({top.signal_score}/99)\n"
         f"💵 {format_price(top.price_usd)} | 📈 1H: {headline_move} | 💧 Liq: ${format_compact_usd(top.liquidity_usd)} | ⚖️ {top.buy_pressure_pct}% Buys\n\n"
-        f"⚡ Free 24/7 Live Solana Radar & Trading Apps:\n"
+        f"⚡ Free 24/7 Live Solana Radar + Apple iOS & Android Apps:\n"
         f"👉 https://{channel_link}\n\n"
         f"Would you buy this move or wait? Comment below 👇\n"
         f"#Solana #Memecoin #Crypto #Shorts #SOL\n"

@@ -46,7 +46,7 @@ def build_directors_cut_script(channel_link: str) -> str:
     return (
         "What if your phone could scan Solana memecoins, filter out obvious rugs, and manage trades autonomously while you sleep — "
         "and let you test everything in live paper simulation before you ever risk a single dollar? "
-        "Welcome to the Capital Alpha mobile suite: two free, non-custodial Android apps built for modern Solana traders. "
+        "Welcome to the Capital Alpha mobile suite: two free, non-custodial apps for both Apple iPhone and Android built for modern Solana traders. "
         "First up, meet CapitalMoon — our flagship autonomous memecoin radar and sniper terminal. "
         "CapitalMoon watches live DexScreener breakouts and pre-run signals around the clock, runs an eight-vector rug and honeypot check, "
         "and executes automated entries with trailing profit locks and stop-loss protection right from your phone while you sleep. "
@@ -54,8 +54,8 @@ def build_directors_cut_script(channel_link: str) -> str:
         "so you can test, practice, and verify strategies risk-free before ever switching to your Live SOL Vault! "
         "And when you want steady Solana management, open CapitalMaker — built for real on-chain liquid staking like JitoSOL and jupSOL, "
         "deep-liquidity Jupiter quant swaps, USDC capital defense, and one-tap empty account SOL rent reclaim. "
-        "No email, no phone number, and zero KYC — just your fingerprint biometrics, a six-digit PIN, Android Keystore encryption, "
-        "and a 24 7 AI support bot built straight into both apps. "
+        "No email, no phone number, and zero KYC — just biometrics, a six-digit local PIN, non-custodial vault encryption, "
+        "and a 24 7 AI support bot built straight into both Apple iOS and Android apps. "
         "Download CapitalMoon and CapitalMaker free from our link in bio, and join our free 24 7 Telegram radar right now. "
         "Crypto and memecoins carry real market risk — always test in paper mode first and do your own research, not financial advice."
     )
@@ -94,13 +94,15 @@ def render_directors_cut_mp4(
     muted = (192, 210, 232)
     dark = (6, 14, 26)
 
-    c1 = duration * 0.14
-    c2 = duration * 0.40
-    c3 = duration * 0.60
-    c4 = duration * 0.76
-    c5 = duration * 0.89
+    # 6 fast-paced chapters for high viewer retention!
+    c1 = duration * 0.14  # Hook
+    c2 = duration * 0.40  # CapitalMoon Autonomous 24/7 Trading Deep Dive
+    c3 = duration * 0.60  # Online Paper Simulation Before Real Money (Both Apps!)
+    c4 = duration * 0.76  # CapitalMaker Yield, Quant & Rent Reclaim
+    c5 = duration * 0.89  # Zero-KYC Security + 24/7 AI Support Bot
     xfade = 0.42
 
+    # Warm dual-harmonic ambient studio synth bed under loudness-normalized voiceover
     ffmpeg_cmd = [
         "ffmpeg", "-y",
         "-f", "rawvideo", "-vcodec", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{RW}x{RH}", "-r", str(FPS), "-i", "pipe:0",
@@ -126,6 +128,7 @@ def render_directors_cut_mp4(
             t = f_idx / FPS
             pulse = 0.5 + 0.5 * math.sin(t * 6.5)
 
+            # Select 3D storytelling scene + smooth cross-dissolve
             if t < c1:
                 bg = sample_camera_frame(img_bull, t / max(c1, 0.1), "zoom_in")
                 if t > c1 - xfade:
@@ -152,6 +155,7 @@ def render_directors_cut_mp4(
             canvas = bg.convert("RGBA")
             canvas.alpha_composite(vignette)
 
+            # Active speech check for audio-reactive equalizer
             active_chunk = None
             is_speaking = False
             for ch in caption_chunks:
@@ -163,6 +167,7 @@ def render_directors_cut_mp4(
                             break
                     break
 
+            # Top retention progress bar + live broadcast header
             d = ImageDraw.Draw(canvas)
             prog_w = int(RW * (t / max(duration, 0.1)))
             d.rectangle([(0, 0), (RW, 8)], fill=(20, 34, 58, 220))
@@ -172,12 +177,13 @@ def render_directors_cut_mp4(
             d = ImageDraw.Draw(canvas)
             dot_r = int(6 + pulse * 3)
             d.ellipse([(54 - dot_r, 57 - dot_r), (54 + dot_r, 57 + dot_r)], fill=mint)
-            d.text((74, 44), "CAPITAL ALPHA  //  SOLANA MOBILE SUITE", fill=white, font=load_font(20, bold=True))
+            d.text((74, 44), "CAPITAL ALPHA  //  iOS & ANDROID SUITE", fill=white, font=load_font(20, bold=True))
             for b_i in range(7):
                 bh = int((8 + abs(math.sin(t * 17.0 + b_i * 1.1)) * 20) if is_speaking else (4 + abs(math.sin(t * 3.0 + b_i)) * 4))
                 bx = RW - 106 + b_i * 10
                 d.rounded_rectangle([(bx, 57 - bh // 2), (bx + 6, 57 + bh // 2)], radius=3, fill=mint if b_i % 2 == 0 else gold)
 
+            # ---------------- CHAPTER 1: SCROLL-STOPPING HOOK ----------------
             if t < c1:
                 p = ease_out_cubic(min(1.0, t / 0.6))
                 ys = int((1.0 - p) * -40)
@@ -187,6 +193,7 @@ def render_directors_cut_mp4(
                 d.text((52, 164 + ys), "EVEN WHILE YOU SLEEP.", fill=white, font=load_font(42, bold=True))
                 d.text((52, 228 + ys), "Test in Online Paper Simulation FIRST — Zero Risk!", fill=mint, font=load_font(22, bold=True))
 
+            # ---------------- CHAPTER 2: CAPITALMOON DEEP DIVE (ANIMATED PHONE HUD) ----------------
             elif t < c2:
                 lt = t - c1
                 blend_glass_panel(canvas, (28, 106, RW - 28, 800), (8, 14, 28, 205), (*mint, 235), radius=28, width=3)
@@ -194,6 +201,7 @@ def render_directors_cut_mp4(
                 d.text((54, 124), "APP #1  •  AUTONOMOUS MEMECOIN TERMINAL", fill=gold, font=load_font(21, bold=True))
                 d.text((54, 156), "CAPITALMOON", fill=white, font=load_font(54, bold=True))
 
+                # Animated live breakout curve inside CapitalMoon HUD card
                 gx0, gy0, gx1, gy1 = 56, 236, RW - 56, 445
                 blend_glass_panel(canvas, (gx0 - 10, gy0 - 10, gx1 + 10, gy1 + 10), (6, 12, 24, 220), (*cyan, 180), radius=18, width=2)
                 d = ImageDraw.Draw(canvas)
@@ -214,6 +222,7 @@ def render_directors_cut_mp4(
                 d.ellipse([(tx - 11, ty - 11), (tx + 11, ty + 11)], fill=white, outline=mint, width=4)
                 d.text((gx0 + 8, gy0 + 4), "24/7 AUTO-TRADER LIVE RADAR SIMULATION", fill=cyan, font=load_font(17, bold=True))
 
+                # Sliding CapitalMoon autonomous feature badges
                 feats = [
                     ("1. PRE-RUN SPIKE RADAR", "Spots surging Solana memecoins early 24/7", cyan),
                     ("2. 8-VECTOR RUG SHIELD", "Blocks freeze traps, honeypots & thin rugs", mint),
@@ -228,6 +237,7 @@ def render_directors_cut_mp4(
                     d.text((74 + xs, fy + 14), ft, fill=fcol, font=load_font(23, bold=True))
                     d.text((74 + xs, fy + 48), fsub, fill=white, font=load_font(20, bold=False))
 
+            # ---------------- CHAPTER 3: ONLINE PAPER SIMULATION BEFORE REAL MONEY ----------------
             elif t < c3:
                 lt = t - c2
                 blend_glass_panel(canvas, (28, 112, RW - 28, 560), (8, 18, 36, 210), (*cyan, 235), radius=28, width=3)
@@ -236,6 +246,7 @@ def render_directors_cut_mp4(
                 d.text((54, 170), "ONLINE PAPER SIMULATION", fill=white, font=load_font(40, bold=True))
                 d.text((54, 226), "Test live Solana markets BEFORE real SOL!", fill=cyan, font=load_font(24, bold=True))
 
+                # Animated Mode Toggle Switch (PAPER SIM -> LIVE SOL VAULT)
                 sw_phase = min(1.0, max(0.0, (lt - 2.0) / 1.5))
                 blend_glass_panel(canvas, (54, 286, RW - 54, 378), (6, 12, 24, 230), (*mint, 220), radius=20, width=2)
                 d = ImageDraw.Draw(canvas)
@@ -249,6 +260,7 @@ def render_directors_cut_mp4(
                 d.text((54, 452), "• Watch win rate, drawdown & trailing exits live", fill=white, font=load_font(22, bold=False))
                 d.text((54, 492), "• Only switch to Live SOL when YOU feel ready", fill=mint, font=load_font(22, bold=True))
 
+            # ---------------- CHAPTER 4: CAPITALMAKER YIELD, QUANT & RENT RECLAIM ----------------
             elif t < c4:
                 lt = t - c3
                 blend_glass_panel(canvas, (28, 112, RW - 28, 535), (12, 14, 32, 210), (*violet, 235), radius=28, width=3)
@@ -270,17 +282,19 @@ def render_directors_cut_mp4(
                     d.text((74 + xs, ey + 12), et, fill=ec, font=load_font(22, bold=True))
                     d.text((74 + xs, ey + 43), es, fill=white, font=load_font(19, bold=False))
 
+            # ---------------- CHAPTER 5: ZERO-KYC SECURITY + 24/7 AI SUPPORT ----------------
             elif t < c5:
                 blend_glass_panel(canvas, (28, 118, RW - 28, 490), (8, 18, 34, 210), (*mint, 235), radius=28, width=3)
                 d = ImageDraw.Draw(canvas)
                 d.text((54, 142), "PRIVACY & SECURITY LOCKED DOWN", fill=gold, font=load_font(24, bold=True))
                 d.text((54, 182), "ZERO EMAIL. ZERO KYC.", fill=white, font=load_font(44, bold=True))
                 d.text((54, 248), "✅ Fingerprint Biometrics + 6-Digit Local PIN", fill=mint, font=load_font(24, bold=True))
-                d.text((54, 292), "✅ Android Keystore AES-256-GCM Encryption", fill=white, font=load_font(23, bold=False))
+                d.text((54, 292), "✅ Available on Apple iPhone (iOS) & Android", fill=white, font=load_font(23, bold=False))
                 d.text((54, 336), "✅ Anti-Screenshot Shield (FLAG_SECURE)", fill=white, font=load_font(23, bold=False))
                 d.text((54, 380), "🤖 Built-in 24/7 AI Support Bot inside BOTH apps!", fill=cyan, font=load_font(24, bold=True))
                 d.text((54, 428), "Transparent 0.75% routing fee (lower than Phantom 0.85%)", fill=muted, font=load_font(20, bold=False))
 
+            # ---------------- CHAPTER 6: EPIC CTA FINALE ----------------
             else:
                 grow = int(pulse * 8)
                 blend_glass_panel(canvas, (30, 140, RW - 30, 520), (8, 16, 30, 215), (*mint, 240), radius=30, width=3)
@@ -292,6 +306,7 @@ def render_directors_cut_mp4(
                 d.text((84, 374), "TAP LINK IN BIO  /  JOIN TELEGRAM", fill=dark, font=load_font(23, bold=True))
                 d.text((84, 412), channel_link, fill=dark, font=load_font(36, bold=True))
 
+            # ---------------- BIG BOLD 3-WORD KARAOKE CAPTIONS ----------------
             if active_chunk:
                 cap_y = 955
                 blend_glass_panel(canvas, (28, cap_y - 18, RW - 28, cap_y + 116), (6, 10, 20, 220), (*mint, 215), radius=22, width=2)
@@ -361,7 +376,7 @@ def main() -> int:
             f"💎 CapitalMaker: Real Solana Staking Yield (JitoSOL/jupSOL), Jupiter Quant & 1-Tap SOL Rent Reclaim\n"
             f"🧪 Online Paper Simulation BEFORE Real Money on BOTH Apps!\n"
             f"🔐 Zero Email • Zero KYC • Biometrics + 6-Digit PIN + 24/7 AI Support\n\n"
-            f"🌐 Download Free APKs: {hub_url}\n"
+            f"🌐 Get Free Apple iOS & Android Apps: {hub_url}\n"
             f"📡 Live 24/7 Radar: https://{channel_link}\n"
             f"(Always test in Paper Mode first — DYOR, not financial advice.)"
         )
