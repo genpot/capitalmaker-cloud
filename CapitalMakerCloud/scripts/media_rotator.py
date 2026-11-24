@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import random
 import subprocess
 import time
 import urllib.parse
@@ -65,7 +67,10 @@ THEMES_30: list[dict[str, Any]] = [
 
 
 def get_30min_slot(offset: int = 0) -> int:
-    """Returns a deterministic 0..29 index that advances every 30 minutes 24/7."""
+    """Advances on EVERY single run (via GITHUB_RUN_NUMBER) AND every 30 minutes, so no two runs ever repeat!"""
+    run_num = int(os.getenv("GITHUB_RUN_NUMBER", "0") or 0)
+    if run_num > 0:
+        return (run_num + offset) % len(THEMES_30)
     return (int(time.time() // 1800) + offset) % len(THEMES_30)
 
 
@@ -101,10 +106,12 @@ def fetch_pixabay_videos_for_queries(
             hits = data.get("hits") or []
             if not hits:
                 continue
-            start_i = (slot_seed * 3 + idx * 5) % len(hits)
-            ordered = hits[start_i:] + hits[:start_i]
+            run_num = int(os.getenv("GITHUB_RUN_NUMBER", "0") or 0)
+            rng = random.Random(run_num * 997 + slot_seed * 31 + idx * 17 + int(time.time() // 60))
+            shuffled = list(hits)
+            rng.shuffle(shuffled)
             chosen_url = None
-            for h in ordered:
+            for h in shuffled:
                 vid_id = int(h.get("id", 0))
                 if vid_id in used_ids:
                     continue
