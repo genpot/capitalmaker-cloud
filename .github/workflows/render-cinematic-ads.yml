@@ -1,0 +1,49 @@
+name: Render 3 Real Live-Action Commercial Ads (Apple iOS & Android)
+
+on:
+  workflow_dispatch:
+    inputs:
+      hub_url:
+        description: "Your Netlify Hub URL"
+        required: false
+        default: "https://iridescent-baklava-d93abb.netlify.app"
+      which_ad:
+        description: "Which video to render (all, ad1_glamorous_woman, ad2_busy_worker, ad3_young_couple)"
+        required: false
+        default: "all"
+
+jobs:
+  render-cinematic-ads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg & Python Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q -r CapitalMakerCloud/requirements.txt
+
+      - name: Render 3 Real Moving Live-Action Commercials
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          HUB_URL: ${{ github.event.inputs.hub_url }}
+        run: python CapitalMakerCloud/scripts/cinematic_ads_pack.py --only "${{ github.event.inputs.which_ad || 'all' }}"
+
+      - name: Upload All 3 Commercial MP4s
+        uses: actions/upload-artifact@v4
+        with:
+          name: capital-alpha-3-live-action-ads
+          path: output/cinematic_ads/*.mp4
+          retention-days: 30
