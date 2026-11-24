@@ -1,14 +1,15 @@
-name: CapitalMaker Auto-Shorts Video Factory (#5)
+name: CapitalMaker Auto-Shorts Video Factory (#5 — 30 Rotating Live Themes)
 
 on:
   schedule:
-    - cron: '0 9,18 * * *'
+    # Runs every 30 minutes (:00 and :30) rotating across 30 live-action themes & 8 voices!
+    - cron: '0,30 * * * *'
   workflow_dispatch:
 
 jobs:
   generate-and-deliver-short:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
       - name: Checkout repository
@@ -19,19 +20,30 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Restore Shorts Anti-Repeat & YouTube Quota Cache
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: shorts-state-${{ github.run_id }}
+          restore-keys: |
+            shorts-state-
+
       - name: Install FFmpeg & Python Video Dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           pip install -q -r CapitalMakerCloud/requirements.txt
 
-      - name: Render 1080x1920 Vertical Solana Breakout Short
+      - name: Render Live-Action 30-Theme Animated Memecoin Short
         env:
           BRAND_NAME: ${{ secrets.BRAND_NAME }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           TELEGRAM_VIDEO_CHAT_ID: ${{ secrets.TELEGRAM_VIDEO_CHAT_ID }}
+          SOLANA_BOT_REF_URL: ${{ secrets.SOLANA_BOT_REF_URL }}
+          EXCHANGE_REF_URL: ${{ secrets.EXCHANGE_REF_URL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
@@ -45,4 +57,4 @@ jobs:
           path: |
             output/latest_short.mp4
             output/latest_short_meta.json
-          retention-days: 7
+          retention-days: 3
