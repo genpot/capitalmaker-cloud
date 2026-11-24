@@ -25,6 +25,15 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from media_rotator import (
+    THEMES_30,
+    draw_fluid_ambient_particles,
+    fetch_pixabay_photos_for_queries,
+    fetch_pixabay_videos_for_queries,
+    get_30min_slot,
+    get_rotating_voice,
+    stitch_live_video_background,
+)
 from shorts_factory import (
     ASSETS_DIR,
     blend_glass_panel,
@@ -379,6 +388,7 @@ def render_overlay_frame(
     s2 = duration * 0.72
 
     canvas = bg_rgb.convert("RGBA")
+    draw_fluid_ambient_particles(canvas, t, RW, RH, accent, secondary)
     canvas.alpha_composite(vignette)
 
     active_chunk = None
@@ -582,27 +592,42 @@ def main() -> int:
     pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
 
     if args.only == "rotate":
-        hour_slot = int(time.time() // 3600) % len(ADS_CONFIG)
-        selected = [ADS_CONFIG[hour_slot]]
+        slot = get_30min_slot(offset=20)
+        base_ad = dict(ADS_CONFIG[slot % len(ADS_CONFIG)])
+        theme = THEMES_30[slot]
+        voice_pick = get_rotating_voice(slot)
+        base_ad["id"] = f"{base_ad['id']}_v{slot + 1}"
+        base_ad["filename"] = f"capital_alpha_ad_slot{slot + 1:02d}.mp4"
+        base_ad["voice"] = voice_pick["voice"]
+        base_ad["badge"] = f"{base_ad['badge']}  #{slot + 1}/30"
+        base_ad["pexels_queries"] = list(theme["queries"]) + list(base_ad["pexels_queries"][:1])
+        base_ad["theme_label"] = theme["label"]
+        base_ad["slot"] = slot
+        selected = [base_ad]
     elif args.only == "all":
-        selected = ADS_CONFIG
+        selected = [dict(a) for a in ADS_CONFIG]
     else:
-        selected = [a for a in ADS_CONFIG if a["id"] == args.only]
+        selected = [dict(a) for a in ADS_CONFIG if a["id"] == args.only]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     for ad in selected:
+        slot_seed = int(ad.get("slot", get_30min_slot(offset=20)))
         local_mp4s = [n for n in ad["local_clips"] if (VIDEOS_DIR / n).exists()]
-        stills = [fn for fn, _ in ad["shots"] if (ASSETS_DIR / fn).exists()]
+        stills = [fn for fn, _ in ad["shots"] if (ASSETS_DIR / fn).exists() or (Path(__file__).resolve().parent / "assets" / fn).exists()]
         mode_str = (
             f"LOCAL MP4 ({len(local_mp4s)})"
             if local_mp4s
-            else ("PIXABAY LIVE HD VIDEO" if pixabay_key else ("PEXELS LIVE HD VIDEO" if pexels_key else f"FALLBACK STILLS ({len(stills)}/3)"))
+            else ("PIXABAY 30x LIVE HD VIDEO" if pixabay_key else ("PEXELS LIVE HD VIDEO" if pexels_key else f"FALLBACK STILLS ({len(stills)}/3)"))
         )
-        print(f"[AD PACK] {ad['id']} | Mode: {mode_str} | Voice: {ad['voice']} ({len(ad['script'].split())} words)")
+        print(f"[AD PACK 30x] {ad['id']} ({ad.get('theme_label', 'Core')}) | Mode: {mode_str} | Voice: {ad['voice']} ({len(ad['script'].split())} words)")
         if args.dry_run:
             continue
 
         clips = resolve_video_clips(ad, pexels_key, pixabay_key)
+        if not clips and pixabay_key:
+            clips = fetch_pixabay_videos_for_queries(
+                ad["pexels_queries"], pixabay_key, CACHE_DIR, ad["id"], target_count=3, slot_seed=slot_seed
+            )
         audio_path = OUT_DIR / f"{ad['id']}.mp3"
         out_mp4 = OUT_DIR / ad["filename"]
         timings = asyncio.run(synthesize_voiceover_with_timings(ad["script"], audio_path, voice=ad["voice"]))

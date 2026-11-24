@@ -20,6 +20,15 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from media_rotator import (
+    THEMES_30,
+    draw_fluid_ambient_particles,
+    fetch_pixabay_photos_for_queries,
+    fetch_pixabay_videos_for_queries,
+    get_30min_slot,
+    get_rotating_voice,
+    stitch_live_video_background,
+)
 from shorts_factory import (
     FPS,
     RH,
@@ -73,10 +82,40 @@ def render_directors_cut_mp4(
     duration = get_audio_duration_seconds(audio_path)
     total_frames = int(math.ceil(duration * FPS))
 
-    img_bull = load_cinematic_asset("host_bull.jpg", ((6, 16, 32), (14, 40, 62)))
-    img_bear = load_cinematic_asset("host_bear.jpg", ((26, 10, 24), (48, 18, 38)))
-    img_inv = load_cinematic_asset("scene_investor.jpg", ((8, 22, 42), (16, 44, 70)))
-    img_city = load_cinematic_asset("scene_finale.jpg", ((6, 18, 34), (12, 44, 62)))
+    # 30-Theme rotating real moving live-action Pixabay HD scenes (6 distinct clips per 90s promo!)
+    pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
+    slot = get_30min_slot(offset=10)
+    queries_6 = []
+    for k in range(6):
+        th = THEMES_30[(slot + k * 5) % len(THEMES_30)]
+        queries_6.append(th["queries"][0])
+
+    live_clips = fetch_pixabay_videos_for_queries(
+        queries_6, pixabay_key, OUT_DIR / "promo_media", "promo90", target_count=6, slot_seed=slot
+    )
+    bg_decoder = None
+    if live_clips:
+        bg_mp4 = OUT_DIR / "promo_live_bg.mp4"
+        stitch_live_video_background(live_clips, duration, RW, RH, FPS, bg_mp4)
+        bg_decoder = subprocess.Popen(
+            ["ffmpeg", "-i", str(bg_mp4), "-f", "rawvideo", "-pix_fmt", "rgb24", "-v", "error", "pipe:1"],
+            stdout=subprocess.PIPE,
+        )
+        img_bull = img_bear = img_inv = img_city = None
+    else:
+        live_photos = fetch_pixabay_photos_for_queries(
+            queries_6, pixabay_key, OUT_DIR / "promo_media", "promo90", target_count=4, slot_seed=slot
+        )
+        if len(live_photos) >= 4:
+            img_bull = load_cinematic_asset(str(live_photos[0]), ((6, 16, 32), (14, 40, 62)))
+            img_bear = load_cinematic_asset(str(live_photos[1]), ((26, 10, 24), (48, 18, 38)))
+            img_inv = load_cinematic_asset(str(live_photos[2]), ((8, 22, 42), (16, 44, 70)))
+            img_city = load_cinematic_asset(str(live_photos[3]), ((6, 18, 34), (12, 44, 62)))
+        else:
+            img_bull = load_cinematic_asset("ad1_woman_1.jpg", ((6, 16, 32), (14, 40, 62)))
+            img_bear = load_cinematic_asset("ad2_worker_2.jpg", ((26, 10, 24), (48, 18, 38)))
+            img_inv = load_cinematic_asset("ad3_couple_1.jpg", ((8, 22, 42), (16, 44, 70)))
+            img_city = load_cinematic_asset("ad1_woman_2.jpg", ((6, 18, 34), (12, 44, 62)))
 
     vignette = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
     vd = ImageDraw.Draw(vignette)
@@ -123,13 +162,20 @@ def render_directors_cut_mp4(
 
     proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
     assert proc.stdin is not None
+    frame_bytes = RW * RH * 3
+    last_live = Image.new("RGB", (RW, RH), (8, 16, 32))
     try:
         for f_idx in range(total_frames):
             t = f_idx / FPS
             pulse = 0.5 + 0.5 * math.sin(t * 6.5)
 
-            # Select 3D storytelling scene + smooth cross-dissolve
-            if t < c1:
+            # Real moving live-action HD Pixabay video across all 6 chapters (or diverse photorealistic motion fallback)
+            if bg_decoder is not None and bg_decoder.stdout is not None:
+                raw = bg_decoder.stdout.read(frame_bytes)
+                if len(raw) == frame_bytes:
+                    last_live = Image.frombytes("RGB", (RW, RH), raw)
+                bg = last_live
+            elif t < c1:
                 bg = sample_camera_frame(img_bull, t / max(c1, 0.1), "zoom_in")
                 if t > c1 - xfade:
                     bg = Image.blend(bg, sample_camera_frame(img_city, 0.0, "pan_right"), (t - (c1 - xfade)) / xfade)
@@ -153,6 +199,7 @@ def render_directors_cut_mp4(
                 bg = sample_camera_frame(img_city, (t - c5) / max(duration - c5, 0.1), "zoom_in")
 
             canvas = bg.convert("RGBA")
+            draw_fluid_ambient_particles(canvas, t, RW, RH, mint, cyan)
             canvas.alpha_composite(vignette)
 
             # Active speech check for audio-reactive equalizer
@@ -339,6 +386,9 @@ def render_directors_cut_mp4(
             proc.stdin.write(canvas.convert("RGB").tobytes())
     finally:
         proc.stdin.close()
+        if bg_decoder is not None:
+            bg_decoder.terminate()
+            bg_decoder.wait()
         if proc.wait() != 0:
             raise RuntimeError("FFmpeg Director's Cut render failed")
 
@@ -351,11 +401,13 @@ def main() -> int:
     raw_chan = normalize_channel_id(os.getenv("TELEGRAM_CHANNEL_ID", ""))
     handle = raw_chan.lstrip("@") if raw_chan.startswith("@") else "MysolAlpha99"
     channel_link = f"t.me/{handle}"
-    hub_url = os.getenv("HUB_URL", f"https://{channel_link}").strip() or f"https://{channel_link}"
-    voice = os.getenv("PROMO_VOICE", "en-US-AndrewNeural").strip() or "en-US-AndrewNeural"
+    hub_url = os.getenv("HUB_URL", "https://iridescent-baklava-d93abb.netlify.app").strip() or "https://iridescent-baklava-d93abb.netlify.app"
+    slot = get_30min_slot(offset=10)
+    rotating_host = get_rotating_voice(slot)
+    voice = os.getenv("PROMO_VOICE", "").strip() or rotating_host["voice"]
 
     script = build_directors_cut_script(channel_link)
-    print(f"[PROMO v2] Voice: {voice} | Script ({len(script.split())} words): {script[:150]}...")
+    print(f"[PROMO v3 LIVE-30x] Slot {slot + 1}/30 ({THEMES_30[slot]['label']}) | Voice: {voice} ({rotating_host['name']}) | Words: {len(script.split())}")
     if args.dry_run:
         return 0
 

@@ -26,6 +26,15 @@ import time as _time
 from pathlib import Path
 from typing import Any
 
+from media_rotator import (
+    THEMES_30,
+    draw_fluid_ambient_particles,
+    fetch_pixabay_photos_for_queries,
+    fetch_pixabay_videos_for_queries,
+    get_30min_slot,
+    get_rotating_voice,
+    stitch_live_video_background,
+)
 from signal_broadcaster import (
     SignalCandidate,
     build_inline_keyboard,
@@ -67,10 +76,13 @@ def is_bullish_move(signal: SignalCandidate) -> bool:
 
 
 def select_narrator(signal: SignalCandidate, bullish: bool) -> dict[str, str]:
-    idx = (int(_time.time() // 600) + sum(ord(c) for c in signal.symbol)) % len(NARRATORS)
-    chosen = dict(NARRATORS[idx])
-    # Match human host visual mood to UP vs DOWN while rotating voices every 10 mins!
-    chosen["host_img"] = "host_bull.jpg" if bullish else "host_bear.jpg"
+    slot = get_30min_slot(offset=sum(ord(c) for c in signal.symbol) % 5)
+    chosen = get_rotating_voice(slot)
+    chosen["slot"] = str(slot)
+    chosen["theme_label"] = THEMES_30[slot]["label"]
+    # Diverse photorealistic fallback still (rotates through woman / worker / couple, never stuck on 1 cartoon)
+    fallbacks = ["ad1_woman_1.jpg", "ad2_worker_2.jpg", "ad3_couple_1.jpg", "ad1_woman_2.jpg", "ad2_worker_1.jpg", "ad3_couple_2.jpg"]
+    chosen["host_img"] = fallbacks[slot % len(fallbacks)]
     return chosen
 
 
@@ -266,16 +278,17 @@ def build_price_curve(signal: SignalCandidate, count: int = 20) -> list[float]:
 
 
 def load_cinematic_asset(filename: str, fallback_colors: tuple[tuple[int, int, int], tuple[int, int, int]]) -> Any:
-    """Loads a 9:16 3D storytelling illustration scaled slightly oversized (840x1493) for silky Ken-Burns camera pans."""
+    """Loads a 9:16 illustration/photo from assets/ or scripts/assets/ for smooth Ken-Burns camera pans."""
     from PIL import Image, ImageDraw, ImageOps  # type: ignore
 
-    target_w, target_h = int(RW * 1.16), int(RH * 1.16)
-    path = ASSETS_DIR / filename
-    if path.exists():
-        img = Image.open(path).convert("RGB")
-        return ImageOps.fit(img, (target_w, target_h), method=Image.Resampling.LANCZOS)
+    target_w, target_h = int(RW * 1.18), int(RH * 1.18)
+    for base in (ASSETS_DIR, SCRIPT_DIR / "assets", Path(filename).parent):
+        path = Path(filename) if Path(filename).is_absolute() else (base / filename)
+        if path.exists() and path.is_file():
+            img = Image.open(path).convert("RGB")
+            return ImageOps.fit(img, (target_w, target_h), method=Image.Resampling.LANCZOS)
 
-    # Graceful fallback gradient if assets folder wasn't uploaded yet
+    # Graceful fallback gradient if asset not present
     bg = Image.new("RGB", (target_w, target_h), fallback_colors[0])
     dr = ImageDraw.Draw(bg)
     c0, c1 = fallback_colors
@@ -342,11 +355,39 @@ def render_storytelling_mp4(
     white = (248, 252, 255)
     muted = (196, 212, 232)
 
-    # Load all 4 cinematic 3D storytelling scenes
-    img_host = load_cinematic_asset(narrator["host_img"], ((8, 20, 38), (14, 42, 64)) if bullish else ((30, 10, 20), (54, 16, 30)))
-    img_investor = load_cinematic_asset("scene_investor.jpg", ((10, 18, 36), (18, 38, 66)))
-    img_host_alt = load_cinematic_asset("host_bear.jpg" if bullish else "host_bull.jpg", ((24, 12, 26), (48, 20, 40)))
-    img_finale = load_cinematic_asset("scene_finale.jpg", ((6, 16, 32), (12, 40, 58)))
+    # 30-Theme Live-Action Pixabay HD Video / Photo rotation (eliminates single cartoon character!)
+    pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
+    slot = int(narrator.get("slot", get_30min_slot())) % len(THEMES_30)
+    theme = THEMES_30[slot]
+    theme_next = THEMES_30[(slot + 7) % len(THEMES_30)]
+    q_list = list(theme["queries"]) + list(theme_next["queries"][:1])
+
+    live_clips = fetch_pixabay_videos_for_queries(
+        q_list, pixabay_key, OUT_DIR / "shorts_media", f"short_{signal.symbol}", target_count=4, slot_seed=slot
+    )
+    bg_decoder = None
+    if live_clips:
+        bg_mp4 = OUT_DIR / "short_live_bg.mp4"
+        stitch_live_video_background(live_clips, duration, RW, RH, FPS, bg_mp4)
+        bg_decoder = subprocess.Popen(
+            ["ffmpeg", "-i", str(bg_mp4), "-f", "rawvideo", "-pix_fmt", "rgb24", "-v", "error", "pipe:1"],
+            stdout=subprocess.PIPE,
+        )
+        img_host = img_investor = img_host_alt = img_finale = None
+    else:
+        live_photos = fetch_pixabay_photos_for_queries(
+            q_list, pixabay_key, OUT_DIR / "shorts_media", f"short_{signal.symbol}", target_count=4, slot_seed=slot
+        )
+        if len(live_photos) >= 4:
+            img_host = load_cinematic_asset(str(live_photos[0]), ((8, 20, 38), (14, 42, 64)))
+            img_investor = load_cinematic_asset(str(live_photos[1]), ((10, 18, 36), (18, 38, 66)))
+            img_host_alt = load_cinematic_asset(str(live_photos[2]), ((24, 12, 26), (48, 20, 40)))
+            img_finale = load_cinematic_asset(str(live_photos[3]), ((6, 16, 32), (12, 40, 58)))
+        else:
+            img_host = load_cinematic_asset(narrator["host_img"], ((8, 20, 38), (14, 42, 64)))
+            img_investor = load_cinematic_asset("ad2_worker_1.jpg", ((10, 18, 36), (18, 38, 66)))
+            img_host_alt = load_cinematic_asset("ad3_couple_1.jpg", ((24, 12, 26), (48, 20, 40)))
+            img_finale = load_cinematic_asset("ad1_woman_2.jpg", ((6, 16, 32), (12, 40, 58)))
 
     # Pre-build top & bottom dark cinema vignette gradient (makes overlays & captions pop crisply over 3D art!)
     vignette = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
@@ -390,14 +431,21 @@ def render_storytelling_mp4(
 
     proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
     assert proc.stdin is not None
+    frame_bytes = RW * RH * 3
+    last_live = Image.new("RGB", (RW, RH), (10, 18, 34))
 
     try:
         for f_idx in range(total_frames):
             t = f_idx / FPS
             pulse = 0.5 + 0.5 * math.sin(t * 6.0)
 
-            # Determine active storytelling scene + smooth cross-dissolve transition!
-            if t < t1:
+            # Real moving Pixabay live-action HD video when available, else smooth camera motion over diverse photos!
+            if bg_decoder is not None and bg_decoder.stdout is not None:
+                raw = bg_decoder.stdout.read(frame_bytes)
+                if len(raw) == frame_bytes:
+                    last_live = Image.frombytes("RGB", (RW, RH), raw)
+                scene_rgb = last_live
+            elif t < t1:
                 scene_rgb = sample_camera_frame(img_host, t / max(t1, 0.1), mode="zoom_in")
                 if t > t1 - xfade:
                     nxt = sample_camera_frame(img_investor, 0.0, mode="pan_right")
@@ -416,6 +464,7 @@ def render_storytelling_mp4(
                 scene_rgb = sample_camera_frame(img_finale, (t - t3) / max(duration - t3, 0.1), mode="zoom_out")
 
             canvas = scene_rgb.convert("RGBA")
+            draw_fluid_ambient_particles(canvas, t, RW, RH, primary, gold)
             canvas.alpha_composite(vignette)
 
             # Active speech check for audio-reactive voice equalizer bars
@@ -563,6 +612,9 @@ def render_storytelling_mp4(
             proc.stdin.write(canvas.convert("RGB").tobytes())
     finally:
         proc.stdin.close()
+        if bg_decoder is not None:
+            bg_decoder.terminate()
+            bg_decoder.wait()
         ret = proc.wait()
         if ret != 0:
             raise RuntimeError(f"FFmpeg storytelling render failed with code {ret}")
