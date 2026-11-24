@@ -19,6 +19,7 @@ import json
 import math
 import os
 import subprocess
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -232,35 +233,40 @@ def fetch_pexels_live_video_clips(ad: dict[str, Any], api_key: str) -> list[Path
 
 
 def fetch_pixabay_live_video_clips(ad: dict[str, Any], api_key: str) -> list[Path]:
-    """Downloads 3 real moving HD live-action MP4 clips from Pixabay Video API (free instant key)."""
+    """Downloads 3 real moving HD live-action MP4 clips from Pixabay Video API, rotating clips every hour."""
     if not api_key.strip():
         return []
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     clips: list[Path] = []
     used_ids: set[int] = set()
+    hour_seed = int(time.time() // 3600)
 
     for idx, query in enumerate(ad["pexels_queries"]):
         if len(clips) >= 3:
             break
         try:
             q = urllib.parse.quote_plus(query.strip())
-            url = f"https://pixabay.com/api/videos/?key={urllib.parse.quote(api_key.strip())}&q={q}&per_page=10&safesearch=true"
+            url = f"https://pixabay.com/api/videos/?key={urllib.parse.quote(api_key.strip())}&q={q}&per_page=25&safesearch=true"
             req = urllib.request.Request(url, headers={"User-Agent": "CapitalAlpha/2.0"})
             with urllib.request.urlopen(req, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             hits = data.get("hits") or []
             print(f"[PIXABAY] Query '{query}' returned {len(hits)} live videos")
             chosen_url = None
-            for h in hits:
-                vid_id = int(h.get("id", 0))
-                if vid_id in used_ids:
-                    continue
-                vids = h.get("videos") or {}
-                cand = (vids.get("medium") or vids.get("large") or vids.get("small") or {}).get("url")
-                if cand:
-                    used_ids.add(vid_id)
-                    chosen_url = cand
-                    break
+            if hits:
+                # Rotate starting offset every hour so each hourly video uses fresh new footage!
+                start_i = (hour_seed + idx * 3) % len(hits)
+                ordered = hits[start_i:] + hits[:start_i]
+                for h in ordered:
+                    vid_id = int(h.get("id", 0))
+                    if vid_id in used_ids:
+                        continue
+                    vids = h.get("videos") or {}
+                    cand = (vids.get("medium") or vids.get("large") or vids.get("small") or {}).get("url")
+                    if cand:
+                        used_ids.add(vid_id)
+                        chosen_url = cand
+                        break
             if chosen_url:
                 dst = CACHE_DIR / f"{ad['id']}_pixabay_{idx}.mp4"
                 dl_req = urllib.request.Request(chosen_url, headers={"User-Agent": "CapitalAlpha/2.0"})
@@ -564,7 +570,7 @@ def render_single_commercial(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render 3 Real Live-Action Capital Alpha Commercials")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--only", default="all", help="all | ad1_glamorous_woman | ad2_busy_worker | ad3_young_couple")
+    parser.add_argument("--only", default="rotate", help="rotate | all | ad1_glamorous_woman | ad2_busy_worker | ad3_young_couple")
     args = parser.parse_args()
 
     raw_chan = normalize_channel_id(os.getenv("TELEGRAM_CHANNEL_ID", ""))
@@ -575,7 +581,13 @@ def main() -> int:
     pexels_key = os.getenv("PEXELS_API_KEY", "").strip()
     pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
 
-    selected = ADS_CONFIG if args.only == "all" else [a for a in ADS_CONFIG if a["id"] == args.only]
+    if args.only == "rotate":
+        hour_slot = int(time.time() // 3600) % len(ADS_CONFIG)
+        selected = [ADS_CONFIG[hour_slot]]
+    elif args.only == "all":
+        selected = ADS_CONFIG
+    else:
+        selected = [a for a in ADS_CONFIG if a["id"] == args.only]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     for ad in selected:
