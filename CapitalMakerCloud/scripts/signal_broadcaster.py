@@ -22,13 +22,24 @@ COOLDOWN_SECONDS = 6 * 3600  # 6-hour anti-spam cooldown per token mint
 STATE_FILE = Path(os.getenv("STATE_FILE", "state/cooldowns.json"))
 
 CORE_SOLANA_WATCH_MINTS = [
-    "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",  # JUP
-    "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # RAY
-    "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",  # WIF
-    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",  # BONK
-    "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",  # PYTH
-    "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",  # POPCAT
-    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",  # JitoSOL
+    "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",  # JUP (DeFi Aggregator)
+    "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # RAY (Solana DEX)
+    "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",  # WIF (Memecoin)
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",  # BONK (Memecoin)
+    "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",  # PYTH (Oracle)
+    "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",  # POPCAT (Memecoin)
+    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",  # JitoSOL (Liquid Staking)
+    "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",   # JTO (MEV / Staking)
+    "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",   # RENDER (AI / GPU)
+    "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",   # MEW (Memecoin)
+    "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",   # BOME (Memecoin)
+    "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",  # FARTCOIN (AI Meme)
+    "2zMMhcVQEXDtdECLnfKX7yV6C66P2L9eX5y2q8L6pump",  # PENGU (Consumer Meme)
+    "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",   # ORCA (DEX)
+    "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS",   # KMNO (DeFi Lending)
+    "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7",  # DRIFT (Perps)
+    "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux",   # HNT (DePIN)
+    "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ",  # W (Wormhole)
 ]
 
 
@@ -177,22 +188,22 @@ def compute_signal_score(
 
 
 def fetch_boosted_solana_mints() -> list[str]:
-    try:
-        items = http_json("https://api.dexscreener.com/token-boosts/top/v1")
-        out: list[str] = []
-        if isinstance(items, list):
-            for item in items:
-                if str(item.get("chainId", "")).lower() != "solana":
-                    continue
-                addr = str(item.get("tokenAddress", "")).strip()
-                if len(addr) >= 32 and addr not in out:
-                    out.append(addr)
-                if len(out) >= 18:
-                    break
-        return out
-    except Exception as exc:
-        print(f"[WARN] Could not fetch boosted mints: {exc}", file=sys.stderr)
-        return []
+    out: list[str] = []
+    for ep in ("https://api.dexscreener.com/token-boosts/latest/v1", "https://api.dexscreener.com/token-boosts/top/v1"):
+        try:
+            items = http_json(ep)
+            if isinstance(items, list):
+                for item in items:
+                    if str(item.get("chainId", "")).lower() != "solana":
+                        continue
+                    addr = str(item.get("tokenAddress", "")).strip()
+                    if len(addr) >= 32 and addr not in out:
+                        out.append(addr)
+                    if len(out) >= 18:
+                        break
+        except Exception as exc:
+            print(f"[WARN] Could not fetch boosted mints from {ep}: {exc}", file=sys.stderr)
+    return out
 
 
 def discover_live_signals() -> list[SignalCandidate]:
@@ -324,6 +335,8 @@ def format_telegram_html(signal: SignalCandidate, brand: str, ai_note: str | Non
 
 def build_inline_keyboard(signal: SignalCandidate, sol_bot_url: str, exchange_url: str) -> dict[str, Any]:
     rows: list[list[dict[str, str]]] = []
+    web_trade_url = f"https://capitalalpha.pages.dev/capitalmoon-ios/?mint={signal.mint}"
+    rows.append([{"text": f"Trade ${signal.symbol} Live (CapitalMoon Web)", "url": web_trade_url}])
     primary: list[dict[str, str]] = []
     if sol_bot_url:
         primary.append({"text": "⚡ Snipe on Solana Bot (SOL)", "url": sol_bot_url})
@@ -372,12 +385,16 @@ def main() -> int:
         print("[INFO] No Solana tokens passed liquidity/volume safety filters right now.")
         return 0
 
-    chosen = next((s for s in signals if not s.is_on_cooldown and s.signal_score >= min_score), None)
-    if chosen is None:
-        chosen = next((s for s in signals if not s.is_on_cooldown), None)
-    if chosen is None:
+    eligible = [s for s in signals if not s.is_on_cooldown and s.signal_score >= min_score]
+    if not eligible:
+        eligible = [s for s in signals if not s.is_on_cooldown]
+    if not eligible:
         print("[INFO] All qualifying tokens are on 6-hour anti-spam cooldown. Skipping post.")
         return 0
+    # Rotate across diverse Solana tokens using GITHUB_RUN_NUMBER so every 30-min post features a new coin
+    run_env = os.getenv("GITHUB_RUN_NUMBER", "").strip()
+    pick_pool = eligible[: min(len(eligible), 14)]
+    chosen = pick_pool[int(run_env) % len(pick_pool)] if run_env.isdigit() else pick_pool[0]
 
     ai_note = fetch_optional_groq_note(chosen, groq_key)
     message_html = format_telegram_html(chosen, brand, ai_note)

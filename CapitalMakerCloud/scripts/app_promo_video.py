@@ -401,7 +401,7 @@ def main() -> int:
     raw_chan = normalize_channel_id(os.getenv("TELEGRAM_CHANNEL_ID", ""))
     handle = raw_chan.lstrip("@") if raw_chan.startswith("@") else "MysolAlpha99"
     channel_link = f"t.me/{handle}"
-    hub_url = os.getenv("HUB_URL", "https://iridescent-baklava-d93abb.netlify.app").strip() or "https://iridescent-baklava-d93abb.netlify.app"
+    hub_url = os.getenv("HUB_URL", "https://capitalalpha.pages.dev").strip() or "https://capitalalpha.pages.dev"
     slot = get_30min_slot(offset=10)
     rotating_host = get_rotating_voice(slot)
     voice = os.getenv("PROMO_VOICE", "").strip() or rotating_host["voice"]
