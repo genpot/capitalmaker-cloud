@@ -2,11 +2,13 @@ name: Master 30-Min Video Scheduler (All 3 Video Bots Rotated Reliably!)
 
 on:
   schedule:
+    # ONE clean 30-min cron avoids GitHub's multi-cron throttling!
+    # Alternates automatically every 30m: Auto-Short #5 -> 30-Theme Commercial Ad -> 90s Live-Action Promo
     - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       mode:
-        description: "auto (rotates every run), short, ad, or promo"
+        description: "auto (rotates every 30m), short, ad, or promo"
         required: false
         default: "auto"
 
@@ -41,7 +43,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          HUB_URL: "https://iridescent-baklava-d93abb.netlify.app"
+          HUB_URL: "https://capitalalpha.pages.dev"
           FORCE_MODE: ${{ github.event.inputs.mode || 'auto' }}
         run: |
           python - << 'EOF'

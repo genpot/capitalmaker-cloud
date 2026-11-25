@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       hub_url:
-        description: "Your Netlify Hub URL"
+        description: "Your Capital Alpha Hub URL"
         required: false
-        default: "https://iridescent-baklava-d93abb.netlify.app"
+        default: "https://capitalalpha.pages.dev"
       which_ad:
         description: "rotate (1 fresh video from 30 themes), all (all 3 core ads), ad1_glamorous_woman, ad2_busy_worker, or ad3_young_couple"
         required: false
@@ -41,7 +41,7 @@ jobs:
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          HUB_URL: ${{ github.event.inputs.hub_url || 'https://iridescent-baklava-d93abb.netlify.app' }}
+          HUB_URL: ${{ github.event.inputs.hub_url || 'https://capitalalpha.pages.dev' }}
         run: python CapitalMakerCloud/scripts/cinematic_ads_pack.py --only "${{ github.event.inputs.which_ad || 'rotate' }}"
 
       - name: Upload Commercial MP4 Artifact
