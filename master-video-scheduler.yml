@@ -1,0 +1,62 @@
+name: Master 30-Min Video Scheduler (All 3 Video Bots Rotated Reliably!)
+
+on:
+  schedule:
+    # ONE clean 30-min cron avoids GitHub's multi-cron throttling!
+    # Alternates automatically every 30m: Auto-Short #5 -> 30-Theme Commercial Ad -> 90s Live-Action Promo
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auto (rotates every 30m), short, ad, or promo"
+        required: false
+        default: "auto"
+
+jobs:
+  run-scheduled-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg & Python Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q -r CapitalMakerCloud/requirements.txt
+
+      - name: Run Rotating 30-Minute Video Engine
+        env:
+          BRAND_NAME: ${{ secrets.BRAND_NAME }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_VIDEO_CHAT_ID: ${{ secrets.TELEGRAM_VIDEO_CHAT_ID }}
+          SOLANA_BOT_REF_URL: ${{ secrets.SOLANA_BOT_REF_URL }}
+          EXCHANGE_REF_URL: ${{ secrets.EXCHANGE_REF_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          HUB_URL: "https://capitalalpha.pages.dev"
+          FORCE_MODE: ${{ github.event.inputs.mode || 'auto' }}
+        run: |
+          python - << 'EOF'
+          import os, subprocess
+          mode = os.getenv("FORCE_MODE", "auto").strip().lower()
+          run_num = int(os.getenv("GITHUB_RUN_NUMBER", "1") or 1)
+          if mode == "auto":
+              mode = ["short", "ad", "promo"][(run_num - 1) % 3]
+          print(f"[MASTER 30M SCHEDULER] Run #{run_num} -> Running video mode: {mode}")
+          if mode == "short":
+              subprocess.run(["python", "CapitalMakerCloud/scripts/shorts_factory.py"], check=True)
+          elif mode == "ad":
+              subprocess.run(["python", "CapitalMakerCloud/scripts/cinematic_ads_pack.py", "--only", "rotate"], check=True)
+          else:
+              subprocess.run(["python", "CapitalMakerCloud/scripts/app_promo_video.py"], check=True)
+          EOF

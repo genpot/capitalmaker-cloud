@@ -1,16 +1,19 @@
-name: Render 3 Real Live-Action Commercial Ads (Apple iOS & Android)
+name: Render 30 Rotating Live-Action Commercial Ads (Every 30m — Apple iOS & Android)
 
 on:
+  schedule:
+    # Runs every 30 minutes (:10 and :40 — staggered cleanly from Shorts & Promo!)
+    - cron: "10,40 * * * *"
   workflow_dispatch:
     inputs:
       hub_url:
-        description: "Your Netlify Hub URL"
+        description: "Your Capital Alpha Hub URL"
         required: false
-        default: "https://iridescent-baklava-d93abb.netlify.app"
+        default: "https://capitalalpha.pages.dev"
       which_ad:
-        description: "Which video to render (all, ad1_glamorous_woman, ad2_busy_worker, ad3_young_couple)"
+        description: "rotate (1 fresh video from 30 themes), all (all 3 core ads), ad1_glamorous_woman, ad2_busy_worker, or ad3_young_couple"
         required: false
-        default: "all"
+        default: "rotate"
 
 jobs:
   render-cinematic-ads:
@@ -32,18 +35,18 @@ jobs:
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           pip install -q -r CapitalMakerCloud/requirements.txt
 
-      - name: Render 3 Real Moving Live-Action Commercials
+      - name: Render Rotating 30-Theme Real Live-Action Commercial
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          HUB_URL: ${{ github.event.inputs.hub_url }}
-        run: python CapitalMakerCloud/scripts/cinematic_ads_pack.py --only "${{ github.event.inputs.which_ad || 'all' }}"
+          HUB_URL: ${{ github.event.inputs.hub_url || 'https://capitalalpha.pages.dev' }}
+        run: python CapitalMakerCloud/scripts/cinematic_ads_pack.py --only "${{ github.event.inputs.which_ad || 'rotate' }}"
 
-      - name: Upload All 3 Commercial MP4s
+      - name: Upload Commercial MP4 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: capital-alpha-3-live-action-ads
+          name: capital-alpha-live-action-ad
           path: output/cinematic_ads/*.mp4
-          retention-days: 30
+          retention-days: 14
