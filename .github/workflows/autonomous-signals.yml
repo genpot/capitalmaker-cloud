@@ -2,6 +2,7 @@ name: CapitalMaker 24/7 Autonomous Signals (#2)
 
 on:
   schedule:
+    # Runs automatically every 30 minutes, 24/7 (even when your phone is off!)
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
@@ -35,5 +36,11 @@ jobs:
           SOLANA_BOT_REF_URL: ${{ secrets.SOLANA_BOT_REF_URL }}
           EXCHANGE_REF_URL: ${{ secrets.EXCHANGE_REF_URL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          HUB_URL: 'https://capitalalpha.pages.dev'
           MIN_SIGNAL_SCORE: '65'
-        run: python CapitalMakerCloud/scripts/signal_broadcaster.py
+        run: |
+          if [ -f "CapitalMakerCloud/scripts/signal_broadcaster.py" ]; then
+            python CapitalMakerCloud/scripts/signal_broadcaster.py
+          else
+            python scripts/signal_broadcaster.py
+          fi
